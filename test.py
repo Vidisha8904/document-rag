@@ -98,12 +98,12 @@ def user_input(user_question):
         **IMPORTANT: Response Format**  
         - If you find relevant information: **"Sources: [list of PDF filenames, comma-separated]"**  
         - If you don't find relevant information: **"No relevant information found in the provided PDFs."**  
-        - After stating the sources, provide a detailed and structured answer.
+        - After stating the sources, provide a clear and structured answer.
 
         **Rules for Answering:**  
         - Use **only** the provided context to generate responses.  
         - If the required information is **fully available**, provide an **in-depth** answer.  
-        - If something **related** exists, use **logical reasoning** but ensure the response remains strictly grounded in the provided data.  
+        - Do not provide additional information that is not available in the context.  
         - If the answer is **not available**, state: **"Answer is not available in the context."** Do not generate speculative or misleading answers.  
         - If the query involves **calculations**, perform them and provide the exact result.  
 
@@ -186,11 +186,12 @@ def main():
                 if pdf_docs:
                     documents = get_pdf_text(pdf_docs)
                     text_chunks = get_text_chunks(documents)
+                    st.write(text_chunks)
                     get_vector_store(text_chunks)
                     st.success("Done")
                 else:
                     st.error("Please upload PDF files first.")
-
+    
     # Create a container for the chat history
     chat_container = st.container()
 
