@@ -101,9 +101,7 @@ def user_input(user_question):
         - After stating the sources, provide a clear and structured answer.
 
         **Rules for Answering:**  
-        - Use **only** the provided context to generate responses.  
-        - If the required information is **fully available**, provide an **in-depth** answer.  
-        - Do not provide additional information that is not available in the context.  
+        - Use **only** the provided context to generate responses.   
         - If the answer is **not available**, state: **"Answer is not available in the context."** Do not generate speculative or misleading answers.  
         - If the query involves **calculations**, perform them and provide the exact result.  
 

@@ -1,4 +1,3 @@
-#no source file names provided, however has a bk25 module for keyword search.
 import streamlit as st
 from PyPDF2 import PdfReader
 import os
@@ -53,7 +52,7 @@ def get_text_chunks(documents):
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=600,
         chunk_overlap=250,
-        separators=["\n\n", "\n", ".", "?", "!", ":"],
+        separators=["\n\n", "\n", ".", "!", ":"],
     )
 
     all_chunks = []
@@ -107,28 +106,14 @@ def format_docs(docs):
     """Format retrieved documents for display."""
     return "\n\n".join(f"Source: {doc.metadata.get('source', 'Unknown')}\n{doc.page_content}" for doc in docs)
 
-def tokenize(text: str) -> list[str]:
-    # Lowercase
-    text = text.lower()
-    # Extract only words (alphabetic + numeric)
-    tokens = re.findall(r"\w+", text)
-    return tokens
-
-# When building the BM25 corpus:
-for chunk in chunks:
-    tokenized = tokenize(chunk.page_content)
-    bm25_corpus.append(tokenized)
-
 
 def bm25_search(query, k=5):
     """Retrieve top-k results from BM25."""
     global bm25_index, bm25_chunks
 
     if bm25_index is None:
-        with open("bm25_index.pkl", "rb") as f:
-            bm25_index = pickle.load(f)
-        with open("bm25_chunks.pkl", "rb") as f:
-            bm25_chunks = pickle.load(f)
+        st.write("BM25 index is not available. Please upload and process your PDFs to create the index.")
+        return []
 
     scores = bm25_index.get_scores(query.split())
     ranked_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)[:k]
@@ -151,7 +136,7 @@ def hybrid_search(user_question, k=5):
 
 def user_input(user_question):
     """Handle user queries and return answers."""
-    docs = hybrid_search(user_question, k=5)
+    docs = hybrid_search(user_question, k=10)
 
     print(f"\n[INFO] Retrieved {len(docs)} documents for query: {user_question}")
     st.sidebar.write("Retrieved Documents:")
@@ -165,38 +150,36 @@ def user_input(user_question):
 
     messages = [
         {
-            "role": "system",
-            "content": f"""You are an AI assistant that answers based only on the retrieved PDFs. 
-            The following information comes from these files: {sources_str}
-            
+        "role": "system",
+        "content": f"""You are an AI assistant that helps users understand PDF documents. 
+        The following information comes from these PDF files: {sources_str}
         
-            **IMPORTANT: Response Format**  
-            - If you find relevant information: **"Sources: [list of PDF filenames, comma-separated]"**  
-            - If you don't find relevant information: **"No relevant information found in the provided PDFs."**  
-            - After stating the sources, provide a clear and structured answer.
+        **IMPORTANT: Response Format**  
+        - If you find relevant information: **"Sources: [list of PDF filenames, comma-separated]"**  
+        - If you don't find relevant information: **"No relevant information found in the provided PDFs."**  
+        - After stating the sources, provide a detailed and structured answer.
 
-            **Rules for Answering:**  
-            - Use **only** the provided context to generate responses.  
-            - If the answer is **not available**, state: **"Answer is not available in the context."** Do not generate speculative or misleading answers.  
-            - If the query involves **calculations**, perform them and provide the exact result.  
+        **Rules for Answering:**  
+        - Use **only** the provided context to generate responses.  
+        - Do not provide additional information that is not available ine the context.  
+        - If the answer is **not available**, state: **"Answer is not available in the context."** Do not generate speculative or misleading answers.  
+        - If the query involves **calculations**, perform them and provide the exact result.    
+        - If the query is **unclear**, ask for clarification instead of making assumptions.  
 
-            **Response Structure:**  
-            - Use **headings, bullet points, and numbered lists** where necessary.  
-            - Highlight key terms using **bold (`**bold**`) formatting** for better clarity.  
-            - If the query is **unclear**, ask for clarification instead of making assumptions.  
+        **Conversation Memory:**  
+        - Support **multi-turn conversations** by remembering previous interactions.  
+        - Reference prior interactions when relevant to maintain consistency.  
 
-            **Conversation Memory:**  
-            - Support **multi-turn conversations** by remembering previous interactions.  
-            - Reference prior interactions when relevant to maintain consistency.  
-
-            Maintain an appropriate tone—**formal, conversational, concise, or elaborate**, depending on the query.  
+        Maintain an appropriate tone—**formal, conversational, concise, or elaborate**, depending on the query.  
         """
-        },
-
-        {
-            "role": "user",
-            "content": f"Question: {user_question}\n\nRetrieved Context:\n{format_docs(docs)}"
-        }
+    },
+    {
+        "role": "user",
+        "content": f"""Question: {user_question}
+        
+        Information from PDFs:
+        {format_docs(docs)}"""
+    }
     ]
 
     model = ChatOpenAI(model="gpt-4o", temperature=0.3)
