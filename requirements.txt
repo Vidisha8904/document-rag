@@ -12,3 +12,4 @@ pypdf2
 langchain-community
 huggingface-hub
 sentence-transformers
+einops
