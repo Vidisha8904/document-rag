@@ -286,7 +286,6 @@ from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain.vectorstores import FAISS
 from langchain.docstore.document import Document
 from dotenv import load_dotenv
-from rank_bm25 import BM25Okapi
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 load_dotenv()
