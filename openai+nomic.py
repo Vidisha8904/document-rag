@@ -452,7 +452,7 @@ def handle_submit():
 
 def main():
     st.set_page_config("Chat PDF", layout="wide")
-    st.header("Chat with PDF")
+    st.header("Chat with PDF - nomic and gpt")
 
     with st.sidebar:
         st.title("Menu:")
