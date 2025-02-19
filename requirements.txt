@@ -1,13 +1,10 @@
 streamlit
-google-generativeai
 python-dotenv
 langchain
 PyPDF2
-chromadb
 faiss-cpu
 openai
 langchain-openai
-langchain_google_genai
 pypdf2
 langchain-community
 huggingface-hub
