@@ -5,12 +5,12 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_openai import ChatOpenAI
 from langchain.docstore.document import Document
 from dotenv import load_dotenv
-from db import add_to_collection, retrieve_from_collection
+from db import add_to_collection, retrieve_from_collection, remove_existing_file_entries
 
 load_dotenv()
 os.getenv("OPENAI_API_KEY")
 
-# Initialize session state for chat history and submitted flag
+# Initialize session state
 if 'chat_history' not in st.session_state:
     st.session_state.chat_history = []
 if 'user_input' not in st.session_state:
@@ -31,7 +31,7 @@ def get_pdf_text(pdf_docs):
         # Store complete text with metadata
         doc = Document(
             page_content=text,
-            metadata={"source": pdf.name}
+            metadata={"filename": pdf.name}  # Changed from "source" to "filename"
         )
         documents.append(doc)
         print(f"[PDF Processing] Completed processing: {pdf.name}")
@@ -40,7 +40,7 @@ def get_pdf_text(pdf_docs):
 
 def get_text_chunks(documents):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
+        chunk_size=500,
         chunk_overlap=100,
     )
     
@@ -48,7 +48,7 @@ def get_text_chunks(documents):
     total_chunks = 0
     
     for doc in documents:
-        print(f"\n[Chunking] Processing document: {doc.metadata['source']}")
+        print(f"\n[Chunking] Processing document: {doc.metadata['filename']}")  # Updated to use 'filename'
         chunks = text_splitter.create_documents(
             texts=[doc.page_content],
             metadatas=[doc.metadata]
@@ -58,14 +58,14 @@ def get_text_chunks(documents):
         # Extract text and add to ChromaDB with source information
         chunk_texts = [chunk.page_content for chunk in chunks]
         try:
-            add_to_collection(chunk_texts, doc.metadata['source'])
-            print(f"[ChromaDB] Added {len(chunks)} chunks from {doc.metadata['source']}")
+            add_to_collection(chunk_texts, doc.metadata['filename'])  # Updated to use 'filename'
+            print(f"[ChromaDB] Added {len(chunks)} chunks from {doc.metadata['filename']}")
             print(f"[ChromaDB] First chunk preview: {chunk_texts[0][:200]}...")
         except Exception as e:
             print(f"[ChromaDB] Error adding chunks: {str(e)}")
         
         total_chunks += len(chunks)
-        st.sidebar.write(f"Created {len(chunks)} chunks for {doc.metadata['source']}")
+        st.sidebar.write(f"Created {len(chunks)} chunks for {doc.metadata['filename']}")
     
     print(f"\n[Summary] Total chunks created and stored: {total_chunks}")
     return all_chunks
@@ -77,29 +77,33 @@ def user_input(user_question):
     print(f"\n[Query] User question: {user_question}")
     
     # Get relevant documents using ChromaDB
-    docs = retrieve_from_collection(user_question, top_k=4)
+    docs = retrieve_from_collection(user_question, top_k=8)
     print(f"[ChromaDB] Retrieved {len(docs) if isinstance(docs, list) else 0} documents")
     
     # Extract sources and texts
-    if isinstance(docs, list) and docs and 'metadata' in docs[0]:
-        sources = [doc['metadata']['filename'] for doc in docs]
-        doc_texts = [doc['document'] for doc in docs]
+    if isinstance(docs, list) and docs:
+        if isinstance(docs[0], dict) and 'metadata' in docs[0]:
+            sources = [doc['metadata'].get('filename', 'Unknown') for doc in docs]  # Updated to use get() with default
+            doc_texts = [doc['document'] for doc in docs]
+        else:
+            sources = ['Unknown'] * len(docs)
+            doc_texts = docs
     else:
-        sources = ['Unknown'] * len(docs)
-        doc_texts = docs
+        sources = []
+        doc_texts = []
     
     print("\n[Retrieved Documents]")
     for i, (source, text) in enumerate(zip(sources, doc_texts)):
         print(f"Document {i+1} from {source}")
-        print(f"Preview: {text[:200]}...")
+        print(f"Preview: {text[:5000]}...")
     
     # Format context for GPT
     context = format_docs(doc_texts, sources)
     print(f"\n[Context for GPT] Length: {len(context)} characters")
-    print(f"Preview: {context[:500]}...")
+    print(f"Preview: {context[:5000]}...")
     
     # Get model response
-    model = ChatOpenAI(model="gpt-4o", temperature=0.3)
+    model = ChatOpenAI(model="gpt-4", temperature=0.3)  # Fixed model name typo
     messages = [
         {
             "role": "system",
@@ -110,7 +114,7 @@ def user_input(user_question):
             - If you find relevant information: **"Sources: [list of PDF filenames, comma-separated]"**  
             - If you don't find relevant information: **"No relevant information found in the provided PDFs."**  
             - After stating the sources, provide a detailed and structured answer.
-
+            
             **Rules for Answering:**  
             - Use **only** the provided context to generate responses.   
             - If the answer is **not available**, state: **"Answer is not available in the context."**
@@ -128,6 +132,7 @@ def user_input(user_question):
     print(f"\n[GPT Response]\n{response.content}\n")
     return response.content
 
+# Rest of the code remains the same...
 def display_chat_message(role, content):
     with st.container():
         if role == "user":
@@ -160,7 +165,7 @@ def handle_submit():
 
 def main():
     st.set_page_config("Chat PDF", layout="wide")
-    st.header("Chat with PDF - ChromaDB and GPT")
+    st.header("Chat with PDF - ChromaDB and GPT- thenlper/gte-base")
 
     with st.sidebar:
         st.title("Menu:")
@@ -168,8 +173,12 @@ def main():
                                   accept_multiple_files=True)
         if st.button("Submit & Process"):
             with st.spinner("Processing..."):
+                
                 if pdf_docs:
                     print("\n[Process Started] Processing PDF files...")
+                    # First remove existing entries for all uploaded files
+                    for pdf in pdf_docs:
+                        remove_existing_file_entries(pdf.name)
                     documents = get_pdf_text(pdf_docs)
                     text_chunks = get_text_chunks(documents)
                     print("[Process Completed] PDF processing and chunking finished")
