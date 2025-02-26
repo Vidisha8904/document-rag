@@ -10,3 +10,5 @@ langchain-community
 huggingface-hub
 sentence-transformers
 einops
+langchain-huggingface
+megablocks
