@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEmbeddings
 from io import BytesIO
 import camelot
-import pdfplumber
+# import pdfplumber
 import json
 import traceback
 
@@ -33,7 +33,7 @@ def get_pdf_text(pdf_docs):
         with open(temp_path, "wb") as f:
             f.write(pdf.read())
         
-        # Extract text with PyPDF2 (or pdfplumber for better layout)
+        # Extract text with PyPDF2 
         text_data = {"text": []}
         try:
             pdf_reader = PdfReader(temp_path)
@@ -287,7 +287,7 @@ def handle_submit():
 
 def main():
     st.set_page_config("Chat PDF", layout="wide")
-    st.header("Chat with PDF - nomic and gpt")
+    st.header("Chat with PDF")
 
     with st.sidebar:
         st.title("Menu:")
