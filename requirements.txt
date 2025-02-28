@@ -12,3 +12,4 @@ sentence-transformers
 einops
 langchain-huggingface
 megablocks
+camelot-py
